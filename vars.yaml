@@ -1,0 +1,43 @@
+---
+casual_user: "foxy"
+remove_packages:
+  - oh-my-zsh-git
+  - cachyos-zsh-config
+  - zsh
+  - zsh-autosuggestions
+  - zsh-completions
+  - zsh-history-substring-search
+  - zsh-syntax-highlighting
+  - zsh-theme-powerlevel10k
+  - virtualbox-guest-utils
+  - open-vm-tools
+  - oh-my-zsh-git
+install_packages:
+  - lact
+  - qemu-base
+  - libvirt
+  - virt-manager
+  - libguestfs
+  - docker
+  - docker-compose
+  - docker-buildx
+  - distrobox
+  - thunderbird
+  - freerdp
+  - moonlight-qt
+  - keepassxc
+  - forkgram
+  - mumble
+  - filelight
+  - joplin-desktop
+  - mpv
+  - torbrowser-launcher
+  - obs-studio
+  - obs-vaapi
+  - obs-vkcapture
+  - just
+  - vulkan-radeon
+  - logseq-desktop
+  - openbsd-netcat
+  - zed
+  - youtube-dl

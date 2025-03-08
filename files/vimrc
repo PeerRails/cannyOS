@@ -1,0 +1,51 @@
+syntax enable
+colorscheme desert
+set paste
+set history=1000
+filetype plugin on
+filetype indent on
+
+set autoread
+
+" Ignore compiled files
+set wildignore=*.o,*~,*.pyc
+if has("win16") || has("win32")
+    set wildignore+=.git\*,.hg\*,.svn\*
+else
+    set wildignore+=*/.git/*,*/.hg/*,*/.svn/*,*/.DS_Store
+endif
+
+" Configure backspace so it acts as it should act
+set backspace=eol,start,indent
+set whichwrap+=<,>,h,l
+
+" Search
+set ignorecase
+set smartcase
+set hlsearch
+set incsearch
+
+set magic
+
+set noerrorbells
+set novisualbell
+set t_vb=
+set tm=500
+
+" Add a bit extra margin to the left
+set foldcolumn=1
+
+set nobackup
+set nowb
+set noswapfile
+
+set expandtab
+set smarttab
+
+set laststatus=2
+
+set ru
+set number
+set tabstop=2
+set shiftwidth=2
+set laststatus=2

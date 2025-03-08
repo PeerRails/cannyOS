@@ -1,0 +1,164 @@
+---
+- name: CachyOS Post-Installation
+  hosts: all
+
+  vars_files:
+    - vars.yaml
+
+  tasks:
+    - name: "CachyOS User | Replace bashrc"
+      ansible.builtin.copy:
+        src: "files/bashrc"
+        dest: "/home/{{ casual_user }}/.bashrc"
+        owner: "{{ casual_user }}"
+        group: "{{ casual_user }}"
+        mode: "0644"
+    - name: "CachyOS User | Create bashrc.d"
+      ansible.builtin.file:
+        path: "/home/{{ casual_user }}/.bashrc.d"
+        owner: "{{ casual_user }}"
+        group: "{{ casual_user }}"
+        state: directory
+        mode: "0744"
+    - name: "CachyOS User | Add 10-user"
+      ansible.builtin.copy:
+        src: "files/user.bash"
+        dest: "/home/{{ casual_user }}/.bashrc.d/10-user"
+        owner: "{{ casual_user }}"
+        group: "{{ casual_user }}"
+        mode: "0644"
+    - name: "CachyOS User | Create .ssh"
+      ansible.builtin.file:
+        path: "/home/{{ casual_user }}/.ssh"
+        owner: "{{ casual_user }}"
+        group: "{{ casual_user }}"
+        state: directory
+        mode: "0700"
+    - name: "CachyOS User | Generate SSH Key Pair"
+      community.crypto.openssh_keypair:
+        path: "/home/{{ casual_user }}/.ssh/id_{{ casual_user }}"
+        owner: "{{ casual_user }}"
+        group: "{{ casual_user }}"
+        mode: "0600"
+    - name: "CachyOS User | Copy vimrc"
+      ansible.builtin.copy:
+        src: "files/vimrc"
+        dest: "/home/{{ casual_user }}/.vimrc"
+        owner: "{{ casual_user }}"
+        group: "{{ casual_user }}"
+        mode: "0644"
+
+    # https://github.com/chaotic-aur/chaotic-aur-ansible/blob/main/roles/chaotic_aur/tasks/main.yml
+    - name: "CachyOS CAUR | Check if Chaotic-AUR is installed already"
+      ansible.builtin.stat:
+        path: /etc/pacman.d/chaotic-mirrorlist
+      register: caur_exists
+    - name: "CachyOS CAUR | Retrieve Chaotic-AUR master key and sign it"
+      when: caur_exists.stat.exists | default(true) is false
+      community.general.pacman_key:
+        id: EF925EA60F33D0CB85C44AD13056513887B78AEB
+        keyserver: keyserver.ubuntu.com
+        state: present
+    - name: "CachyOS CAUR | Install Chaotic-AUR keyring and mirrorlist"
+      when: caur_exists.stat.exists | default(true) is false
+      community.general.pacman:
+        name:
+          - https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst
+          - https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst
+    - name: "CachyOS CAUR | Install pacman config"
+      when: caur_exists.stat.exists | default(true) is false
+      ansible.builtin.blockinfile:
+        dest: /etc/pacman.conf
+        prepend_newline: true
+        block: |
+          [chaotic-aur]
+          Include = /etc/pacman.d/chaotic-mirrorlist
+    - name: "CachyOS System | Update packages after installing CAUR"
+      when: caur_exists.stat.exists | default(true) is false
+      community.general.pacman:
+        update_cache: true
+        upgrade: true
+
+    - name: "CachyOS System | Update packages"
+      community.general.pacman:
+        update_cache: true
+        upgrade: true
+    - name: "CachyOS System | Allow 1025-65535 Ports"
+      loop:
+        - tcp
+        - udp
+      community.general.ufw:
+        rule: allow
+        port: 1025:65535
+        proto: "{{ item }}"
+    - name: "CachyOS System | Disable Split Lock Mitigation in Sysctl"
+      ansible.builtin.lineinfile:
+        path: "/etc/sysctl.d/99-splitlock.conf"
+        line: "kernel.split_lock_mitigate=0"
+        owner: "root"
+        group: "root"
+        mode: "0644"
+        create: true
+    - name: "CachyOS Packages | Remove packages"
+      community.general.pacman:
+        name: "{{ remove_packages }}"
+        state: absent
+    - name: "CachyOS Packages | Install new packages"
+      community.general.pacman:
+        name: "{{ install_packages }}"
+        state: present
+    - name: "CachyOS User | Add user to docker and change shell"
+      ansible.builtin.user:
+        name: "{{ casual_user }}"
+        groups: docker
+        append: true
+        shell: /bin/bash
+    - name: "CachyOS System | Enable Docker Daemon"
+      ansible.builtin.systemd_service:
+        name: docker
+        state: started
+        enabled: true
+    - name: "CachyOS System | Replace sshd config"
+      ansible.builtin.copy:
+        src: "files/openssh.conf"
+        dest: "/etc/ssh/sshd_config"
+        owner: "root"
+        group: "root"
+        mode: "0644"
+    - name: "CachyOS System | Restart and enable sshd"
+      ansible.builtin.systemd_service:
+        name: sshd
+        state: restarted
+        enabled: true
+    - name: "CachyOS System | Enable libvirtd systemd service"
+      ansible.builtin.systemd_service:
+        name: libvirtd
+        state: started
+        enabled: true
+    - name: "CachyOS System | Replace resolved config"
+      ansible.builtin.copy:
+        src: "files/resolved.conf"
+        dest: "/etc/resolv.conf"
+        owner: "root"
+        group: "root"
+        mode: "0644"
+    - name: "CachyOS System | Restart resolved"
+      ansible.builtin.systemd_service:
+        name: systemd-resolved
+        state: restarted
+    - name: "CachyOS System | Copy MinCifri Certs"
+      loop:
+        - "files/russian_trusted_root_ca_pem.crt"
+        - "files/russian_trusted_sub_ca_pem.crt"
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "/etc/ca-certificates/trust-source/anchors/"
+        owner: "root"
+        group: "root"
+        mode: "0644"
+    - name: "CachyOS System | Update CA Trust"
+      ansible.builtin.command: "/usr/bin/update-ca-trust"  # noqa no-changed-when
+
+    - name: "CachyOS System | Disable split_lock_detect in Kernel"
+      ansible.builtin.debug:
+        msg: "Do not forget to kernelstub -a split_lock_detect=off !"
