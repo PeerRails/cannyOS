@@ -192,7 +192,7 @@
         owner: "root"
         group: "root"
         mode: "0644"
-    - name: "CachyOS System Tuning | Manually set zram0 lz"
+    - name: "CachyOS System Tuning | UDEV GPU Reset Rule"
       ansible.builtin.blockinfile:
         path: "/usr/lib/udev/rules.d/80-gpu-reset.rules"
         create: true
