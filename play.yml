@@ -8,7 +8,7 @@
   tasks:
     - name: "CachyOS User | Replace bashrc"
       ansible.builtin.copy:
-        src: "files/bashrc"
+        src: "files/dotfiles/bashrc"
         dest: "/home/{{ casual_user }}/.bashrc"
         owner: "{{ casual_user }}"
         group: "{{ casual_user }}"
@@ -22,7 +22,7 @@
         mode: "0744"
     - name: "CachyOS User | Add 10-user"
       ansible.builtin.copy:
-        src: "files/user.bash"
+        src: "files/dotfiles/user.bash"
         dest: "/home/{{ casual_user }}/.bashrc.d/10-user"
         owner: "{{ casual_user }}"
         group: "{{ casual_user }}"
@@ -42,8 +42,15 @@
         mode: "0600"
     - name: "CachyOS User | Copy vimrc"
       ansible.builtin.copy:
-        src: "files/vimrc"
+        src: "files/dotfiles/vimrc"
         dest: "/home/{{ casual_user }}/.vimrc"
+        owner: "{{ casual_user }}"
+        group: "{{ casual_user }}"
+        mode: "0644"
+    - name: "CachyOS User | Copy justfile"
+      ansible.builtin.copy:
+        src: "files/dotfiles/user.justfile"
+        dest: "/home/{{ casual_user }}/.justfile"
         owner: "{{ casual_user }}"
         group: "{{ casual_user }}"
         mode: "0644"
@@ -120,7 +127,7 @@
         enabled: true
     - name: "CachyOS System | Replace sshd config"
       ansible.builtin.copy:
-        src: "files/openssh.conf"
+        src: "files/system/openssh.conf"
         dest: "/etc/ssh/sshd_config"
         owner: "root"
         group: "root"
@@ -137,7 +144,7 @@
         enabled: true
     - name: "CachyOS System | Replace resolved config"
       ansible.builtin.copy:
-        src: "files/resolved.conf"
+        src: "files/system/resolved.conf"
         dest: "/etc/resolv.conf"
         owner: "root"
         group: "root"
@@ -148,8 +155,8 @@
         state: restarted
     - name: "CachyOS System | Copy MinCifri Certs"
       loop:
-        - "files/russian_trusted_root_ca_pem.crt"
-        - "files/russian_trusted_sub_ca_pem.crt"
+        - "files/ssl/russian_trusted_root_ca_pem.crt"
+        - "files/ssl/russian_trusted_sub_ca_pem.crt"
       ansible.builtin.copy:
         src: "{{ item }}"
         dest: "/etc/ca-certificates/trust-source/anchors/"
@@ -157,7 +164,54 @@
         group: "root"
         mode: "0644"
     - name: "CachyOS System | Update CA Trust"
-      ansible.builtin.command: "/usr/bin/update-ca-trust"  # noqa no-changed-when
+      ansible.builtin.command: "/usr/bin/update-ca-trust" # noqa no-changed-when
+    - name: "CachyOS System Tuning | Set Memlock"
+      community.general.pam_limits:
+        domain: "*"
+        limit_type: "-"
+        limit_item: memlock
+        value: 2147484
+    - name: "CachyOS System Tuning | Set systemd default timers"
+      loop:
+        - "/etc/systemd/system.conf.d/timeout.conf"
+        - "/etc/systemd/user.conf.d/timeout.conf"
+      ansible.builtin.lineinfile:
+        path: "{{ item }}"
+        create: true
+        line: "DefaultTimeoutStopSec=15s"
+        owner: "root"
+        group: "root"
+        mode: "0644"
+    - name: "CachyOS System Tuning | Manually set zram0 lz4"
+      ansible.builtin.blockinfile:
+        path: "/etc/systemd/zram0-generator.conf"
+        create: true
+        block: |
+          [zram0]
+          compression-algorithm=lz4
+        owner: "root"
+        group: "root"
+        mode: "0644"
+    - name: "CachyOS System Tuning | Manually set zram0 lz"
+      ansible.builtin.blockinfile:
+        path: "/usr/lib/udev/rules.d/80-gpu-reset.rules"
+        create: true
+        block: |
+          # If a GPU crash is caused by a specific process, kill the PID
+          ACTION=="change", ENV{DEVNAME}=="/dev/dri/card0", ENV{RESET}=="1", ENV{PID}!="0", RUN+="/sbin/kill -9 %E{PID}"
+
+          # Kill SDDM and Gamescope if the GPU crashes and VRAM is lost
+          ACTION=="change", ENV{DEVNAME}=="/dev/dri/card0", ENV{RESET}=="1", ENV{FLAGS}=="1", RUN+="/usr/sbin/systemctl restart sddm"
+        owner: "root"
+        group: "root"
+        mode: "0644"
+    - name: "CachyOS System Tuning | Manually set bore scheduler"
+      ansible.builtin.copy:
+        src: "files/system/99-bore-scheduler.conf"
+        dest: "/etc/sysctl.d/99-bore-scheduler.conf"
+        owner: "root"
+        group: "root"
+        mode: "0644"
 
     - name: "CachyOS System | Disable split_lock_detect in Kernel"
       ansible.builtin.debug:

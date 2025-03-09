@@ -27,6 +27,7 @@ install_packages:
   - moonlight-qt
   - keepassxc
   - forkgram
+  - telegram-desktop
   - mumble
   - filelight
   - joplin-desktop
@@ -40,4 +41,13 @@ install_packages:
   - logseq-desktop
   - openbsd-netcat
   - zed
-  - youtube-dl
+  - yt-dlp
+  - cachyos-extra-znver4/kcalc
+  - cachyos-extra-znver4/okular
+  - cachyos-extra-znver4/strawberry
+  - cachyos-extra-znver4/tailscale
+  - cachyos/coolercontrol
+  - chaotic-aur/qtscrcpy
+  - cachyos/opentabletdriver
+  - cachyos-extra-znver4/xf86-input-wacom
+  - cachyos-extra-znver4/dino
