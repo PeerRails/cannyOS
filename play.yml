@@ -145,7 +145,7 @@
     - name: "CachyOS System | Replace resolved config"
       ansible.builtin.copy:
         src: "files/system/resolved.conf"
-        dest: "/etc/resolv.conf"
+        dest: "/etc/systemd/resolved.conf"
         owner: "root"
         group: "root"
         mode: "0644"
@@ -153,6 +153,7 @@
       ansible.builtin.systemd_service:
         name: systemd-resolved
         state: restarted
+        daemon_reload: true
     - name: "CachyOS System | Copy MinCifri Certs"
       loop:
         - "files/ssl/russian_trusted_root_ca_pem.crt"
@@ -184,14 +185,20 @@
         mode: "0644"
     - name: "CachyOS System Tuning | Manually set zram0 lz4"
       ansible.builtin.blockinfile:
-        path: "/etc/systemd/zram0-generator.conf"
+        path: "/etc/systemd/zram-generator.conf"
         create: true
         block: |
           [zram0]
           compression-algorithm=lz4
+          zram-size = 8192
         owner: "root"
         group: "root"
         mode: "0644"
+    - name: "CachyOS System | Restart zram"
+      ansible.builtin.systemd_service:
+        name: systemd-zram-setup@zram0.service
+        state: restarted
+        daemon_reload: true
     - name: "CachyOS System Tuning | UDEV GPU Reset Rule"
       ansible.builtin.blockinfile:
         path: "/usr/lib/udev/rules.d/80-gpu-reset.rules"
